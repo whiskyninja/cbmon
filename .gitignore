@@ -1,0 +1,14 @@
+# 私人資料/爬取原始資料/個人筆記/wrangler帳號快取，不進版控（只保留部署網頁+腳本原始碼）
+/*.csv
+/*.txt
+/*.md
+/*.xlsx
+/*.json
+/qa-screenshots/
+.wrangler/
+__pycache__/
+*.pyc
+
+# scripts/ 只留 .py 程式碼本身，排除爬取/查詢產生的資料傾印檔
+scripts/*.json
+scripts/*.txt

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>可轉債強贖監測表</title>
+<style>
+  :root {
+    --paper: #F2F1EA;
+    --paper-raised: #FFFFFF;
+    --ink: #1C2126;
+    --ink-soft: #565F68;
+    --ink-faint: #8A8F94;
+    --line: #D8D5C8;
+    --line-soft: #E6E3D8;
+    --accent: #1E5F6E;
+    --accent-soft: #DCE9EA;
+    --hot: #B23A2E;
+    --hot-soft: #F6E2DE;
+    --safe: #4B7A3F;
+    --safe-soft: #E4EDDD;
+    --muted: #8A8578;
+    --muted-soft: #EAE7DC;
+    --shadow: 0 1px 2px rgba(28,33,38,0.06), 0 4px 14px rgba(28,33,38,0.05);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14181A;
+      --paper-raised: #1B2022;
+      --ink: #EDEAE0;
+      --ink-soft: #A8A296;
+      --ink-faint: #6E7873;
+      --line: #2B322F;
+      --line-soft: #232928;
+      --accent: #5CC2B8;
+      --accent-soft: #1E3336;
+      --hot: #E2685A;
+      --hot-soft: #3A2320;
+      --safe: #8FC178;
+      --safe-soft: #23301C;
+      --muted: #7C7768;
+      --muted-soft: #24231D;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC",
+      "Microsoft JhengHei", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .num {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", "Consolas", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 18px 80px; }
+
+  header.top { padding: 6px 0 22px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.08em; color: var(--accent); font-weight: 700;
+    text-transform: uppercase; margin: 0 0 8px;
+  }
+  h1 {
+    font-size: clamp(22px, 4.2vw, 30px); line-height: 1.25; margin: 0 0 10px; font-weight: 800;
+    letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .sub { color: var(--ink-soft); font-size: 14.5px; line-height: 1.6; max-width: 62ch; margin: 0; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 12.5px; color: var(--ink-faint);
+  }
+  .meta-row span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 26px; }
+  .stat {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .stat .n { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+  .stat .l { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    background: var(--accent-soft); border: 1px solid var(--line-soft); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 26px; font-size: 13px; color: var(--ink);
+  }
+  .legend b { font-weight: 700; }
+  .legend .chip-demo { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  section.block { margin-bottom: 34px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .block-head h2 { font-size: 16px; margin: 0; font-weight: 800; }
+  .block-head .count { font-size: 12.5px; color: var(--ink-faint); }
+  .block-note { font-size: 12.5px; color: var(--ink-soft); margin: -6px 0 14px; line-height: 1.6; }
+
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; box-shadow: var(--shadow); display: grid;
+    grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center;
+  }
+  .row .name-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .row .code { font-size: 11.5px; color: var(--ink-faint); flex-shrink: 0; }
+  .row .name { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .maturity { font-size: 11.5px; color: var(--ink-faint); grid-column: 1 / -1; }
+
+  .gauge-cell { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+  .gauge-track {
+    position: relative; flex: 1; height: 8px; border-radius: 5px; background: var(--line-soft); overflow: visible;
+  }
+  .gauge-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 5px; background: var(--accent); }
+  .gauge-fill.zone-hot { background: var(--hot); }
+  .gauge-fill.zone-warm { background: var(--accent); }
+  .gauge-mark {
+    position: absolute; top: -3px; width: 2px; height: 14px; background: var(--ink-faint); opacity: 0.55;
+  }
+  .gauge-mark::after {
+    content: "30%"; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 9.5px; color: var(--ink-faint); font-family: ui-monospace, monospace;
+  }
+  .gauge-num { font-size: 13.5px; font-weight: 700; width: 62px; text-align: right; flex-shrink: 0; }
+
+  .chip {
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .chip.c-fresh { background: var(--safe-soft); color: var(--safe); }
+  .chip.c-warm { background: var(--accent-soft); color: var(--accent); }
+  .chip.c-harvested { background: var(--muted-soft); color: var(--muted); }
+
+  .chip.s-clear { background: var(--safe-soft); color: var(--safe); }
+  .chip.s-stock_warn { background: var(--accent-soft); color: var(--accent); }
+  .chip.s-stock_margin_upcoming { background: var(--accent-soft); color: var(--accent); }
+  .chip.s-stock_margin_active { background: var(--hot-soft); color: var(--hot); }
+  .chip.s-stock_disp { background: var(--hot-soft); color: var(--hot); }
+  .chip.s-cb_disp { background: var(--hot-soft); color: var(--hot); }
+  .chip.s-unresolved { background: var(--muted-soft); color: var(--muted); }
+  .row .name-line { flex-wrap: wrap; row-gap: 4px; }
+
+  details.outliers {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 4px 16px;
+  }
+  details.outliers summary {
+    cursor: pointer; padding: 12px 0; font-weight: 700; font-size: 14px; list-style: none;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  details.outliers summary::-webkit-details-marker { display: none; }
+  details.outliers summary .arrow { transition: transform 0.15s ease; color: var(--ink-faint); }
+  details.outliers[open] summary .arrow { transform: rotate(90deg); }
+  .outlier-warn {
+    background: var(--hot-soft); color: var(--hot); border-radius: 8px; padding: 10px 12px;
+    font-size: 12.5px; line-height: 1.6; margin: 4px 0 14px;
+  }
+  table.outlier-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  table.outlier-table th {
+    text-align: left; font-size: 11px; color: var(--ink-faint); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 6px 8px; border-bottom: 1px solid var(--line);
+  }
+  table.outlier-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); }
+  table.outlier-table td.num, table.outlier-table th.num { text-align: right; }
+  .table-scroll { overflow-x: auto; }
+
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); line-height: 1.7; }
+  footer a { color: var(--accent); }
+
+  @media (min-width: 620px) {
+    .row { grid-template-columns: 1.6fr auto; }
+    .row .maturity { grid-column: auto; text-align: right; }
+    .gauge-cell { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">可轉債（CB）強贖監測</p>
+    <h1>誰離「強制贖回」門檻最近？</h1>
+    <p class="sub">
+      台灣規則：股票收盤價連續 30 個營業日超過轉換價 30% 以上，公司就能強制要求投資人把債券換成股票。
+      這張表把全市場 444 檔可轉債的股價、轉換價抓出來，算出每一檔「目前」離這條門檻還有多遠 —— 並排除已經被大戶轉換走大半的舊訊號。
+    </p>
+    <p class="sub" style="margin-top:10px;">
+      <b>離門檻越近是雙面訊號</b>：事件機率上升的同時，該標的被交易所列為注意股/處置股、或被暫停融券的機率也同步上升——兩者常常同源（股價異常大漲本身就會觸發交易所警示）。
+      每一列新增「限制狀態」徽章，交叉比對證交所/櫃買中心當前的注意股、處置股、暫停融券公告，不是要排除這些標的，而是提醒：排名最前面、看起來最有機會的標的，可能同時也是最難真的下單執行的標的。
+    </p>
+    <div class="meta-row">
+      <span><span class="dot"></span>可轉債資料 2026-07-17（thefew.tw）</span>
+      <span>限制狀態 2026-07-18（TWSE/TPEx OpenAPI 即時查詢）</span>
+      <span>單日快照，非連續天數追蹤</span>
+      <span>手動更新，非自動排程</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="n num">444</div><div class="l">全市場可轉債檔數</div></div>
+    <div class="stat"><div class="n num">30</div><div class="l">候選名單（值得盯）</div></div>
+    <div class="stat"><div class="n num">7</div><div class="l">已收割 / 訊號偏晚</div></div>
+    <div class="stat"><div class="n num">21</div><div class="l">極端值 / 需自行查證</div></div>
+    <div class="stat"><div class="n num" style="color:var(--hot)">15</div><div class="l">目前有限制狀態旗標（本表 58 檔中）</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="chip-demo"><span class="swatch" style="background:var(--safe)"></span> <b>已轉換 0%</b> — 籌碼幾乎沒被拿走，訊號最新鮮</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--accent)"></span> <b>已轉換 &lt;10%</b> — 剛開始有人轉股</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--hot)"></span> <b>紅色量表</b> — 已經超過 30% 門檻</span>
+  </div>
+
+  <div class="legend" style="background:var(--paper-raised);">
+    <span style="font-weight:800; width:100%;">限制狀態徽章（正股／CB 是否已被交易所盯上）</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--safe)"></span> 可觀察 — 目前無注意/處置/暫停融券</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--accent)"></span> 正股注意 — 已列注意股，處置前哨</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--accent)"></span> 即將暫停融券 — 已公告未來停券期間</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--hot)"></span> 正股暫停融券中 — 現在不能融券放空</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--hot)"></span> 正股處置 / CB處置 — 交易方式受限，含信用交易保證金調整</span>
+  </div>
+
+  <section class="block">
+    <div class="block-head">
+      <h2>候選名單 — 離強贖門檻近、籌碼還沒被收割</h2>
+      <span class="count">依離門檻遠近排序</span>
+    </div>
+    <p class="block-note">
+      量表灰色刻度線＝30% 強贖門檻。填色愈長代表股價愈接近或愈超過轉換價的 30%；填色若已經是紅色，代表數字上已達門檻（但不確定是否已「連續 30 個營業日」）。
+    </p>
+    <div class="rows" id="candidateRows"></div>
+  </section>
+
+  <section class="block">
+    <details class="outliers" id="harvestedBlock">
+      <summary>已收割 / 訊號偏晚（7 檔，僅供對照，不建議追）<span class="arrow">▸</span></summary>
+      <p class="block-note" style="margin-top:0;">這些離門檻雖然很遠（早已超過30%），但已轉換%已經偏高，代表大戶多半已經把籌碼轉股出脫得差不多，訊號已經偏晚。</p>
+      <div class="table-scroll">
+        <table class="outlier-table">
+          <thead><tr><th>代碼</th><th>名稱</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
+          <tbody id="harvestedRows"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="block">
+    <details class="outliers" id="outlierBlock">
+      <summary>極端值 — 離門檻算出來 &gt;100%（21 檔，需自行查證）<span class="arrow">▸</span></summary>
+      <div class="outlier-warn">
+        這些標的算出來的「離強贖門檻」異常大（部分超過 300%），多半是股價經過多年大漲、轉換價是很久以前設定的深度價內債，<b>不代表現在才剛達標</b>。
+        公司通常早就該執行強贖，出現在名單可能是資料更新延遲或個別特殊狀況。建議點進 thefew.tw 個股頁或查 MOPS 公告個別確認，不要直接當新訊號操作。
+      </div>
+      <div class="table-scroll">
+        <table class="outlier-table">
+          <thead><tr><th>代碼</th><th>名稱</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
+          <tbody id="outlierRows"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    <b>本頁為手動更新，非自動排程／即時資料</b>：要更新頁面內容，需要①重新登入 thefew.tw 並用瀏覽器擷取全市場CB資料 ②重新查詢 TWSE/TPEx OpenAPI 取得最新注意股/處置股/暫停融券清單，兩批資料都要人工重跑腳本後才會反映在頁面上。<br>
+    可轉債資料來源：thefew.tw/cb/low-premium（需登入帳號查看全市場資料），透過已登入瀏覽器擷取，2026-07-17 單日快照。
+    「離強贖門檻」= (股票收盤價 − 轉換價) ÷ 轉換價，需連續 30 個營業日 ≥ 30% 公司才可強制贖回（依證券商業同業公會自律規則第16條）。<br>
+    限制狀態資料來源：台灣證券交易所 OpenAPI（openapi.twse.com.tw，上市注意股/處置股）＋證券櫃檯買賣中心 OpenAPI（tpex.org.tw/openapi，上櫃注意股/處置股/暫停融券賣出預告），2026-07-18 查詢，同樣是單日快照。
+    正股與可轉債代碼分開查詢比對，因可轉債本身也可能因自身成交異常獨立被列處置，不一定跟隨正股狀態。
+    限制狀態僅代表「查詢當下」的公開揭露資訊，不代表個股未來走向，實際能否融資融券/借券仍須洽券商確認。<br>
+    本表僅供研究與觀察，非投資建議；完整原始資料另存於本機 CSV。
+  </footer>
+
+</div>
+
+<script>
+  const candidates = [
+    ["49793","華星光三",100.0,0.0,"2026-12-09","clear"],
+    ["33571","臺慶科一",92.1,0.01,"2026-10-31","clear"],
+    ["61973","佳必琪三",90.3,0.0,"2027-10-15","clear"],
+    ["24866","一詮六",86.9,0.0,"2027-07-01","clear"],
+    ["24553","全新三",83.7,0.0,"2029-01-27","clear"],
+    ["24642","盟立二",81.0,0.0,"2026-09-16","clear"],
+    ["31312","弘塑二",80.1,0.0,"2028-08-05","stock_margin_upcoming"],
+    ["62093","今國光三",79.5,0.0,"2028-10-23","clear"],
+    ["64512","訊芯二KY",78.1,0.0,"2028-02-27","clear"],
+    ["24552","全新二",73.1,0.0,"2029-01-23","clear"],
+    ["49794","華星光四",72.8,0.0,"2026-12-25","clear"],
+    ["37075","漢磊五",71.3,0.0,"2030-08-20","clear"],
+    ["65152","穎崴二",71.0,0.0,"2029-02-05","clear"],
+    ["31311","弘塑一",66.3,0.0,"2028-07-30","stock_margin_upcoming"],
+    ["61907","萬泰科七",64.0,0.0,"2028-11-06","clear"],
+    ["47223","國精化三",61.4,0.0,"2028-10-01","clear"],
+    ["30165","嘉晶五",43.9,0.0,"2027-07-26","clear"],
+    ["49674","十銓四",42.2,0.0,"2029-01-15","clear"],
+    ["49231","力士一",41.1,0.0,"2028-01-29","clear"],
+    ["37023","大聯大三",40.4,0.0,"2027-11-21","clear"],
+    ["33055","昇貿五",39.2,0.0,"2026-12-25","clear"],
+    ["64145","樺漢五",38.5,0.01,"2026-08-16","clear"],
+    ["22363","百達三KY",36.3,0.0,"2029-02-10","clear"],
+    ["37022","大聯大二",36.0,0.0,"2027-11-11","clear"],
+    ["68702","騰雲二",35.2,0.0,"2027-12-05","stock_margin_active"],
+    ["30337","威健七",33.1,0.0,"2027-09-11","clear"],
+    ["69571","裕慶一KY",29.7,0.0,"2027-10-02","clear"],
+    ["68701","騰雲一",28.8,0.0,"2027-12-05","stock_margin_active"],
+    ["37171","聯嘉投控一",28.3,0.0,"2028-01-21","clear"],
+    ["65101","精測一",28.2,0.0,"2029-01-05","clear"],
+  ];
+
+  const harvested = [
+    ["65151","穎崴一",590.7,64.32,"2027-05-31","clear"],
+    ["49712","IET二KY",500.0,71.55,"2026-11-20","stock_margin_upcoming"],
+    ["62174","中探針四",381.6,100.0,"2026-08-27","stock_disp"],
+    ["62909","良維九",365.0,99.07,"2027-03-07","stock_margin_active"],
+    ["89964","高力四",327.4,49.52,"2026-12-06","clear"],
+    ["61875","萬潤五",243.3,40.32,"2027-07-10","stock_margin_upcoming"],
+    ["80273","鈦昇三",232.9,61.83,"2027-07-13","cb_disp"],
+  ];
+
+  const outliers = [
+    ["23837","台光電七",816.0,0.0,"2029-10-09","clear"],
+    ["23836","台光電六",639.9,0.0,"2027-09-25","clear"],
+    ["62744","台燿四",588.2,0.0,"2027-05-06","stock_warn"],
+    ["62235","旺矽五",502.2,0.0,"2028-01-08","stock_warn"],
+    ["23372","旺宏二",443.5,0.0,"2028-03-24","clear"],
+    ["30371","欣興一",380.0,0.0,"2028-11-03","clear"],
+    ["31672","大量二",350.6,0.0,"2028-08-06","clear"],
+    ["61828","合晶八",346.3,0.0,"2027-09-27","cb_disp"],
+    ["34912","昇達科二",343.8,8.49,"2027-08-28","stock_margin_active"],
+    ["23682","金像電二",323.5,0.0,"2026-12-05","clear"],
+    ["82101","勤誠一",310.7,0.02,"2027-01-19","clear"],
+    ["45421","科嶠一",277.3,0.7,"2026-09-06","cb_disp"],
+    ["65841","南俊國際一",223.8,0.0,"2026-10-29","clear"],
+    ["62745","台燿五",203.1,0.0,"2028-11-13","stock_warn"],
+    ["65842","南俊國際二",200.0,0.0,"2026-10-30","clear"],
+    ["31351","凌航一",176.9,0.0,"2027-12-04","clear"],
+    ["64421","光聖一",164.6,0.01,"2026-11-11","clear"],
+    ["66722","騰輝電子二KY",159.1,0.0,"2028-02-03","cb_disp"],
+    ["62076","雷科六",157.9,0.0,"2027-09-05","clear"],
+    ["66721","騰輝電子一KY",151.0,0.0,"2028-01-22","clear"],
+    ["62075","雷科五",150.5,0.0,"2027-08-26","clear"],
+  ];
+
+  const STATE_LABEL = {
+    clear: "可觀察",
+    stock_warn: "正股注意",
+    stock_margin_upcoming: "即將暫停融券",
+    stock_margin_active: "正股暫停融券",
+    stock_disp: "正股處置",
+    cb_disp: "CB處置",
+    unresolved: "需人工問券商",
+  };
+  function stateChip(state) {
+    if (!state || state === "clear") return "";
+    const label = STATE_LABEL[state] || state;
+    return `<span class="chip s-${state}">⚑ ${label}</span>`;
+  }
+
+  function chipFor(pct) {
+    if (pct <= 0.05) return ['c-fresh', '已轉換 0%'];
+    if (pct < 10) return ['c-warm', `已轉換 ${pct}%`];
+    return ['c-harvested', `已轉換 ${pct}%`];
+  }
+
+  function gaugeHTML(gap) {
+    const capped = Math.min(gap, 100);
+    const zone = gap >= 30 ? 'zone-hot' : 'zone-warm';
+    const markPos = 30;
+    return `
+      <div class="gauge-cell">
+        <div class="gauge-track">
+          <div class="gauge-fill ${zone}" style="width:${capped}%"></div>
+          <div class="gauge-mark" style="left:${markPos}%"></div>
+        </div>
+        <div class="gauge-num num">${gap.toFixed(1)}%</div>
+      </div>`;
+  }
+
+  function renderCandidates() {
+    const el = document.getElementById('candidateRows');
+    el.innerHTML = candidates.map(([code, name, gap, conv, maturity, state]) => {
+      const [cls, label] = chipFor(conv);
+      return `
+        <div class="row">
+          <div class="name-line">
+            <span class="code num">${code}</span>
+            <span class="name">${name}</span>
+            <span class="chip ${cls}">${label}</span>
+            ${stateChip(state)}
+          </div>
+          ${gaugeHTML(gap)}
+          <span class="maturity">到期/賣回 ${maturity}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderTable(id, data) {
+    const el = document.getElementById(id);
+    el.innerHTML = data.map(([code, name, gap, conv, maturity, state]) => `
+      <tr>
+        <td class="num">${code}</td>
+        <td>${name}</td>
+        <td class="num">${gap.toFixed(1)}%</td>
+        <td class="num">${conv}%</td>
+        <td>${maturity}</td>
+        <td>${stateChip(state) || '—'}</td>
+      </tr>`).join('');
+  }
+
+  renderCandidates();
+  renderTable('harvestedRows', harvested);
+  renderTable('outlierRows', outliers);
+</script>
+</body>
+</html>
