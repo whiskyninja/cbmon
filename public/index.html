@@ -1,3 +1,4 @@
+<!-- 來源註記：這是 Codex 弄的。 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -133,6 +134,10 @@
   .chip.c-fresh { background: var(--safe-soft); color: var(--safe); }
   .chip.c-warm { background: var(--accent-soft); color: var(--accent); }
   .chip.c-harvested { background: var(--muted-soft); color: var(--muted); }
+  .chip.streak-met { background: var(--hot-soft); color: var(--hot); }
+  .chip.streak-building { background: var(--accent-soft); color: var(--accent); }
+  .chip.streak-zero { background: var(--muted-soft); color: var(--muted); }
+  .chip.streak-unknown { background: var(--muted-soft); color: var(--muted); border: 1px dashed var(--muted); }
 
   .chip.s-clear { background: var(--safe-soft); color: var(--safe); }
   .chip.s-stock_warn { background: var(--accent-soft); color: var(--accent); }
@@ -142,6 +147,14 @@
   .chip.s-cb_disp { background: var(--hot-soft); color: var(--hot); }
   .chip.s-unresolved { background: var(--muted-soft); color: var(--muted); }
   .row .name-line { flex-wrap: wrap; row-gap: 4px; }
+  details.audit { grid-column: 1 / -1; margin-top: 4px; border-top: 1px solid var(--line-soft); }
+  details.audit summary { cursor: pointer; color: var(--accent); font-size: 11.5px; padding: 8px 0 2px; }
+  .audit-note { color: var(--ink-soft); font-size: 11.5px; line-height: 1.5; margin: 6px 0; }
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+  .audit-table th, .audit-table td { padding: 5px 6px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; }
+  .audit-table th:first-child, .audit-table td:first-child { text-align: left; }
+  .audit-table tr.pass td:last-child { color: var(--safe); font-weight: 700; }
+  .audit-table tr.fail td:last-child { color: var(--hot); font-weight: 700; }
 
   details.outliers {
     background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
@@ -175,6 +188,14 @@
     .row .maturity { grid-column: auto; text-align: right; }
     .gauge-cell { grid-column: 1 / -1; }
   }
+  @media (max-width: 619px) {
+    .wrap { padding: 20px 14px 60px; }
+    .rows { grid-template-columns: minmax(0, 1fr); }
+    .row { min-width: 0; }
+    .gauge-num { width: 54px; }
+    .audit-table { font-size: 10px; }
+    .audit-table th, .audit-table td { padding: 5px 4px; }
+  }
 </style>
 </head>
 <body>
@@ -184,26 +205,29 @@
     <p class="eyebrow">可轉債（CB）強贖監測</p>
     <h1>誰離「強制贖回」門檻最近？</h1>
     <p class="sub">
-      台灣規則：股票收盤價連續 30 個營業日超過轉換價 30% 以上，公司就能強制要求投資人把債券換成股票。
-      這張表把全市場 379 檔可轉債的股價、轉換價抓出來，算出每一檔「目前」離這條門檻還有多遠 —— 並排除已經被大戶轉換走大半的舊訊號。
+      台灣規則：股票收盤價連續 30 個營業日達到當時轉換價的 130% 以上，發行公司取得提前贖回權。
+      本表逐日比對官方收盤價與當日有效轉換價，顯示目前連續達標天數；30/30 代表價格條件達標，不代表公司已公告行使。
     </p>
     <p class="sub" style="margin-top:10px;">
       <b>離門檻越近是雙面訊號</b>：事件機率上升的同時，該標的被交易所列為注意股/處置股、或被暫停融券的機率也同步上升——兩者常常同源（股價異常大漲本身就會觸發交易所警示）。
       每一列新增「限制狀態」徽章，交叉比對證交所/櫃買中心當前的注意股、處置股、暫停融券公告，不是要排除這些標的，而是提醒：排名最前面、看起來最有機會的標的，可能同時也是最難真的下單執行的標的。
     </p>
     <div class="meta-row">
-      <span><span class="dot"></span>可轉債資料 2026-08-04（XQ全球贏家手動匯出，轉換價可信）</span>
+      <span><span class="dot"></span>可轉債資料 2026-08-05（XQ全球贏家手動匯出，轉換價可信）</span>
       <span>限制狀態 2026-07-18（TWSE/TPEx OpenAPI 查詢，已過期未更新）</span>
-      <span>單日快照，非連續天數追蹤</span>
+      <span id="streakMeta">連續天數資料載入中</span>
       <span>手動更新，非自動排程</span>
     </div>
   </header>
 
   <div class="stats">
-    <div class="stat"><div class="n num">379</div><div class="l">全市場可轉債檔數</div></div>
-    <div class="stat"><div class="n num">23</div><div class="l">候選名單（值得盯）</div></div>
-    <div class="stat"><div class="n num">62</div><div class="l">已收割 / 訊號偏晚</div></div>
-    <div class="stat"><div class="n num">2</div><div class="l">極端值 / 需自行查證</div></div>
+    <div class="stat"><div class="n num" id="totalCount">379</div><div class="l">全市場可轉債檔數</div></div>
+    <div class="stat"><div class="n num" id="candidateCount">23</div><div class="l">候選名單（值得盯）</div></div>
+    <div class="stat"><div class="n num" id="met30Count">—</div><div class="l">目前或近30營業日曾達30連續日</div></div>
+    <div class="stat"><div class="n num" id="buildingCount">—</div><div class="l">目前連續 20–29 日</div></div>
+    <div class="stat"><div class="n num" id="incompleteCount">—</div><div class="l">歷史資料不完整</div></div>
+    <div class="stat"><div class="n num" id="harvestedCount">62</div><div class="l">已收割 / 訊號偏晚</div></div>
+    <div class="stat"><div class="n num" id="outlierCount">2</div><div class="l">極端值 / 需自行查證</div></div>
     <div class="stat"><div class="n num" style="color:var(--hot)">15</div><div class="l">目前有限制狀態旗標（本表 87 檔中，資料已過期）</div></div>
   </div>
 
@@ -211,6 +235,8 @@
     <span class="chip-demo"><span class="swatch" style="background:var(--safe)"></span> <b>已轉換 0%</b> — 籌碼幾乎沒被拿走，訊號最新鮮</span>
     <span class="chip-demo"><span class="swatch" style="background:var(--accent)"></span> <b>已轉換 &lt;10%</b> — 剛開始有人轉股</span>
     <span class="chip-demo"><span class="swatch" style="background:var(--hot)"></span> <b>紅色量表</b> — 已經超過 30% 門檻</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--accent)"></span> <b>17/30</b> — 目前連續達標17個營業日</span>
+    <span class="chip-demo"><span class="swatch" style="background:var(--muted)"></span> <b>資料不完整</b> — 不宣稱已取得價格條件</span>
   </div>
 
   <div class="legend" style="background:var(--paper-raised);">
@@ -225,10 +251,10 @@
   <section class="block">
     <div class="block-head">
       <h2>候選名單 — 離強贖門檻近、籌碼還沒被收割</h2>
-      <span class="count">依離門檻遠近排序</span>
+      <span class="count">依連續達標天數優先排序</span>
     </div>
     <p class="block-note">
-      量表灰色刻度線＝30% 強贖門檻。填色愈長代表股價愈接近或愈超過轉換價的 30%；填色若已經是紅色，代表數字上已達門檻（但不確定是否已「連續 30 個營業日」）。
+      量表灰色刻度線＝30% 價格門檻。徽章顯示目前連續達標天數；展開卡片可核對最近30個營業日的官方收盤價、當日轉換價與130%門檻。
     </p>
     <div class="rows" id="candidateRows"></div>
   </section>
@@ -239,7 +265,7 @@
       <p class="block-note" style="margin-top:0;">這些離門檻雖然很遠（早已超過30%），但已轉換%已經偏高，代表大戶多半已經把籌碼轉股出脫得差不多，訊號已經偏晚。</p>
       <div class="table-scroll">
         <table class="outlier-table">
-          <thead><tr><th>代碼</th><th>名稱</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
+          <thead><tr><th>代碼</th><th>名稱</th><th class="num">連續日</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
           <tbody id="harvestedRows"></tbody>
         </table>
       </div>
@@ -255,7 +281,7 @@
       </div>
       <div class="table-scroll">
         <table class="outlier-table">
-          <thead><tr><th>代碼</th><th>名稱</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
+          <thead><tr><th>代碼</th><th>名稱</th><th class="num">連續日</th><th class="num">離門檻</th><th class="num">已轉換%</th><th>到期/賣回日</th><th>限制狀態</th></tr></thead>
           <tbody id="outlierRows"></tbody>
         </table>
       </div>
@@ -263,9 +289,9 @@
   </section>
 
   <footer>
-    <b>本頁為手動更新，非自動排程／即時資料</b>：要更新頁面內容，需要①重新用 XQ全球贏家桌面程式匯出「可轉債總表」CSV ②重新查詢 TWSE/TPEx OpenAPI 取得最新注意股/處置股/暫停融券清單，兩批資料都要人工重跑腳本後才會反映在頁面上。<br>
-    可轉債資料來源：XQ全球贏家「可轉債總表」手動匯出，2026-08-04 單日快照。2026-07-26起曾評估改用thefew.tw免登入自動管線，但經全市場比對發現thefew.tw的「目前轉換價」對約7成CB是舊值（未反映除權息/重設條款調整），會讓離強贖距離算錯，故本表維持使用XQ手動匯出的轉換價，僅cbput（賣回排行榜）改用自動管線（該頁核心算法不依賴轉換價，不受此問題影響）。<br>
-    「離強贖門檻」= (股票收盤價 − 轉換價) ÷ 轉換價，需連續 30 個營業日 ≥ 30% 公司才可強制贖回（依證券商業同業公會自律規則第16條）。<br>
+    <b>本頁為手動更新，非自動排程／即時資料</b>：更新時需匯出 XQ「可轉債總表」CSV，並重跑官方歷史行情、限制狀態與網站產生腳本。<br>
+    可轉債目前轉換價來源：XQ全球贏家手動匯出。歷史轉換價由每日 XQ 快照依生效日重建；若調價前快照不足，該券標示「資料不完整」，不會宣稱已達30/30。正股歷史收盤價來自 TWSE／TPEx 官方盤後資料。<br>
+    每日價格條件＝正股收盤價 ≥ 當日有效轉換價 × 130%；需連續30個營業日均達標，發行公司才取得依個別發行條款行使提前贖回的價格條件。30/30不代表公司已公告行使。<br>
     限制狀態資料來源：台灣證券交易所 OpenAPI（openapi.twse.com.tw，上市注意股/處置股）＋證券櫃檯買賣中心 OpenAPI（tpex.org.tw/openapi，上櫃注意股/處置股/暫停融券賣出預告），<b>2026-07-18 查詢，尚未跟著本次資料更新同步重查，可能已過期</b>，同樣是單日快照。
     正股與可轉債代碼分開查詢比對，因可轉債本身也可能因自身成交異常獨立被列處置，不一定跟隨正股狀態。
     限制狀態僅代表「查詢當下」的公開揭露資訊，不代表個股未來走向，實際能否融資融券/借券仍須洽券商確認。<br>
@@ -276,97 +302,100 @@
 
 <script>
   const candidates = [
-    ["54642","霖宏二",91.0,0.0,"2028-05-25","clear"],
-    ["76101","聯友金屬一創",82.4,0.0,"2028-05-20","clear"],
-    ["35266","凡甲六",61.6,29.07,"2027-01-29","clear"],
-    ["34163","融程電三",44.4,23.04,"2026-01-25","clear"],
-    ["65381","倉和一",43.9,14.5,"2028-06-26","clear"],
-    ["65101","精測一",39.2,14.13,"2029-01-05","clear"],
-    ["82711","宇瞻一",38.8,0.0,"2029-05-05","clear"],
-    ["68941","衛司特一",34.6,0.0,"2029-03-09","clear"],
-    ["37171","聯嘉投控一",33.8,9.36,"2028-01-21","clear"],
-    ["68702","騰雲二",32.4,13.14,"2027-12-05","stock_margin_active"],
-    ["33245","雙鴻五",30.0,0.1,"2027-07-31","clear"],
-    ["35872","閎康二",29.8,14.51,"2029-02-04","stock_margin_upcoming"],
-    ["75562","意德士二",29.3,14.3,"2028-08-15","clear"],
-    ["65472","高端疫苗二",28.1,3.51,"2029-03-19","clear"],
-    ["31352","凌航二",27.4,0.0,"2028-05-05","clear"],
-    ["34793","安勤三",26.8,6.42,"2027-01-22","clear"],
-    ["68701","騰雲一",26.1,14.57,"2027-12-05","stock_margin_active"],
-    ["811210","至上十",22.6,0.0,"2027-05-24","clear"],
-    ["35267","凡甲七",20.1,10.32,"2028-07-24","clear"],
-    ["66642","群翊二",19.6,8.06,"2027-11-19","stock_margin_upcoming"],
-    ["47394","康普四",18.2,0.57,"2028-12-17","clear"],
-    ["82103","勤誠三",17.9,0.0,"2029-02-03","clear"],
-    ["65096","聚和六",17.7,6.7,"2026-07-03","stock_margin_upcoming"],
-    ["82102","勤誠二",15.3,0.0,"2029-01-26","clear"],
+    ["35266","凡甲六",62.7,29.07,"2027-01-29","clear",70,"complete","",true,"2026-08-05"],
+    ["54642","霖宏二",87.4,0.0,"2028-05-25","clear",51,"complete","",true,"2026-08-05"],
+    ["68941","衛司特一",38.9,0.0,"2029-03-09","clear",3,"complete","2026-07-31",true,"2026-07-16"],
+    ["31352","凌航二",35.9,0.0,"2028-05-05","clear",1,"complete","2026-08-04",true,"2026-06-30"],
+    ["35872","閎康二",42.7,14.51,"2029-02-04","stock_margin_upcoming",1,"incomplete","2026-08-04",true,"2026-07-16"],
+    ["65472","高端疫苗二",40.8,3.51,"2029-03-19","clear",1,"complete","2026-08-04",false,""],
+    ["65096","聚和六",25.3,6.7,"2026-07-03","stock_margin_upcoming",0,"complete","2026-08-05",false,""],
+    ["66642","群翊二",23.9,8.06,"2027-11-19","stock_margin_upcoming",0,"complete","2026-08-05",false,"2026-06-09"],
+    ["35267","凡甲七",20.9,10.32,"2028-07-24","clear",0,"complete","2026-08-05",false,""],
+    ["65381","倉和一",51.6,14.5,"2028-06-26","clear",4,"incomplete","2026-07-30",false,""],
+    ["34163","融程電三",50.0,23.04,"2026-01-25","clear",4,"incomplete","2026-07-30",false,""],
+    ["82711","宇瞻一",40.6,0.0,"2029-05-05","clear",4,"incomplete","2026-07-30",false,""],
+    ["68702","騰雲二",35.1,13.14,"2027-12-05","stock_margin_active",4,"incomplete","2026-07-30",false,""],
+    ["65101","精測一",37.2,14.13,"2029-01-05","clear",3,"incomplete","2026-07-31",false,""],
+    ["37171","聯嘉投控一",33.2,9.36,"2028-01-21","clear",3,"incomplete","2026-07-31",false,""],
+    ["33245","雙鴻五",32.9,0.1,"2027-07-31","clear",3,"incomplete","2026-07-31",false,""],
+    ["75562","意德士二",34.1,14.3,"2028-08-15","clear",1,"incomplete","2026-08-04",false,""],
+    ["34793","安勤三",33.0,6.42,"2027-01-22","clear",1,"incomplete","2026-08-04",false,""],
+    ["68701","騰雲一",28.7,14.57,"2027-12-05","stock_margin_active",0,"incomplete","2026-08-05",false,""],
+    ["811210","至上十",24.0,0.0,"2027-05-24","clear",0,"incomplete","2026-08-05",false,""],
+    ["47394","康普四",22.9,0.57,"2028-12-17","clear",0,"incomplete","2026-08-05",false,""],
+    ["82103","勤誠三",19.9,0.0,"2029-02-03","clear",0,"incomplete","2026-08-05",false,""],
+    ["82102","勤誠二",17.3,0.0,"2029-01-26","clear",0,"incomplete","2026-08-05",false,""],
+    ["84624","柏文四",15.4,0.0,"2028-05-08","clear",0,"incomplete","2026-08-05",false,""],
+    ["36054","宏致四",15.3,0.0,"2028-07-06","clear",0,"incomplete","2026-08-05",false,""],
   ];
 
   const harvested = [
-    ["30371","欣興一",464.1,73.46,"2028-11-03","clear"],
-    ["23372","旺宏二",421.7,97.67,"2028-03-24","clear"],
-    ["89964","高力四",343.6,97.42,"2026-12-06","clear"],
-    ["31672","大量二",248.8,62.34,"2028-08-06","clear"],
-    ["45421","科嶠一",226.3,86.73,"2026-09-06","cb_disp"],
-    ["61828","合晶八",192.7,81.55,"2027-09-27","cb_disp"],
-    ["629010","良維十",189.0,99.23,"2027-05-13","stock_margin_active"],
-    ["68301","汎銓一",173.4,84.96,"2026-08-15","clear"],
-    ["80273","鈦昇三",171.1,98.52,"2026-07-13","cb_disp"],
-    ["65841","南俊國際一",167.9,99.29,"2026-10-29","clear"],
-    ["49793","華星光三",154.7,45.25,"2026-12-09","clear"],
-    ["65842","南俊國際二",148.2,99.93,"2026-10-30","clear"],
-    ["66722","騰輝電子二KY",141.4,98.38,"2028-02-03","cb_disp"],
-    ["81551","博智一",140.4,82.51,"2028-01-10","clear"],
-    ["15601","中砂一",138.8,80.33,"2027-06-24","clear"],
-    ["66721","騰輝電子一KY",133.9,98.68,"2028-01-22","clear"],
-    ["64324","今展科四",130.2,88.64,"2026-08-16","clear"],
-    ["23511","順德一",128.6,76.01,"2028-06-17","clear"],
-    ["49794","華星光四",120.1,45.15,"2026-12-25","clear"],
-    ["24552","全新二",118.2,55.82,"2029-01-23","clear"],
-    ["62076","雷科六",110.2,77.15,"2027-09-05","clear"],
-    ["61973","佳必琪三",107.0,55.07,"2027-10-15","clear"],
-    ["24642","盟立二",106.4,97.1,"2026-09-16","clear"],
-    ["24673","志聖三",105.7,67.64,"2028-01-22","clear"],
-    ["62075","雷科五",104.0,85.93,"2027-08-26","clear"],
-    ["24672","志聖二",102.4,76.21,"2028-01-09","clear"],
-    ["23683","金像電三",100.8,83.48,"2028-11-24","clear"],
-    ["35265","凡甲五",100.8,82.48,"2025-02-14","clear"],
-    ["80282","昇陽半導體二",95.9,81.78,"2030-01-22","clear"],
-    ["33571","臺慶科一",95.1,86.54,"2026-10-31","clear"],
-    ["80212","尖點二",94.9,61.57,"2029-01-20","clear"],
-    ["30336","威健六",94.0,97.12,"2026-06-01","clear"],
-    ["84221","可寧衛一",87.5,99.64,"2025-11-22","clear"],
-    ["65152","穎崴二",86.8,48.01,"2029-02-05","clear"],
-    ["36053","宏致三",86.3,91.02,"2027-08-06","clear"],
-    ["80426","金山電六",86.0,69.77,"2027-12-16","clear"],
-    ["62093","今國光三",79.0,56.6,"2028-10-23","clear"],
-    ["24762","鉅祥二",78.9,71.39,"2027-01-26","clear"],
-    ["80914","翔名四",77.7,80.87,"2026-08-15","clear"],
-    ["36894","湧德四",67.7,99.44,"2026-03-05","clear"],
-    ["64145","樺漢五",65.9,94.18,"2026-08-16","clear"],
-    ["61907","萬泰科七",64.6,38.95,"2028-11-06","clear"],
-    ["64512","訊芯二KY",62.6,69.88,"2028-02-27","clear"],
-    ["61635","華電網五",61.7,56.9,"2027-10-16","clear"],
-    ["15952","川寶二",60.5,88.83,"2027-09-02","clear"],
-    ["60152","宏遠證二",58.5,77.78,"2027-01-05","clear"],
-    ["31312","弘塑二",58.4,51.49,"2028-08-05","stock_margin_upcoming"],
-    ["33055","昇貿五",52.1,96.08,"2025-12-25","clear"],
-    ["27551","揚秦一",51.7,63.5,"2028-01-15","clear"],
-    ["37075","漢磊五",49.1,70.27,"2028-08-20","clear"],
-    ["31311","弘塑一",48.4,64.45,"2028-07-30","stock_margin_upcoming"],
-    ["47223","國精化三",44.5,36.44,"2028-10-01","clear"],
-    ["84222","可寧衛二",44.2,96.47,"2028-04-07","clear"],
-    ["30882","艾訊二",42.4,78.96,"2026-08-28","stock_margin_active"],
-    ["30337","威健七",40.0,34.94,"2027-09-11","clear"],
-    ["45663","時碩工業三",38.0,95.65,"2026-11-27","clear"],
-    ["53095","系統電五",35.9,99.82,"2025-08-08","clear"],
-    ["30165","嘉晶五",33.3,34.64,"2027-07-26","clear"],
-    ["370201","大聯大E1",32.2,90.73,"2029-01-14","clear"],
-    ["44421","竣邦一KY",30.0,55.2,"2027-07-28","clear"],
+    ["23372","旺宏二",410.9,97.67,"2028-03-24","clear",70,"complete","",true,"2026-08-05"],
+    ["89964","高力四",345.7,97.42,"2026-12-06","clear",70,"complete","",true,"2026-08-05"],
+    ["45421","科嶠一",258.5,86.73,"2026-09-06","cb_disp",70,"complete","",true,"2026-08-05"],
+    ["629010","良維十",187.0,99.23,"2027-05-13","stock_margin_active",70,"complete","",true,"2026-08-05"],
+    ["80273","鈦昇三",182.7,98.52,"2026-07-13","cb_disp",70,"complete","",true,"2026-08-05"],
+    ["68301","汎銓一",174.4,84.96,"2026-08-15","clear",70,"complete","",true,"2026-08-05"],
+    ["65841","南俊國際一",174.4,99.29,"2026-10-29","clear",70,"complete","",true,"2026-08-05"],
+    ["65842","南俊國際二",154.2,99.93,"2026-10-30","clear",70,"complete","",true,"2026-08-05"],
+    ["66722","騰輝電子二KY",144.8,98.38,"2028-02-03","cb_disp",70,"complete","",true,"2026-08-05"],
+    ["66721","騰輝電子一KY",137.2,98.68,"2028-01-22","clear",70,"complete","",true,"2026-08-05"],
+    ["23511","順德一",133.4,76.01,"2028-06-17","clear",70,"complete","",true,"2026-08-05"],
+    ["35265","凡甲五",102.1,82.48,"2025-02-14","clear",70,"complete","",true,"2026-08-05"],
+    ["30336","威健六",92.4,97.12,"2026-06-01","clear",70,"complete","",true,"2026-08-05"],
+    ["24762","鉅祥二",87.2,71.39,"2027-01-26","clear",70,"complete","",true,"2026-08-05"],
+    ["62093","今國光三",86.3,56.6,"2028-10-23","clear",70,"complete","",true,"2026-08-05"],
+    ["64512","訊芯二KY",78.8,69.88,"2028-02-27","clear",70,"complete","",true,"2026-08-05"],
+    ["36894","湧德四",74.2,99.44,"2026-03-05","clear",70,"complete","",true,"2026-08-05"],
+    ["61635","華電網五",64.9,56.9,"2027-10-16","clear",70,"complete","",true,"2026-08-05"],
+    ["60152","宏遠證二",62.6,77.78,"2027-01-05","clear",70,"complete","",true,"2026-08-05"],
+    ["31312","弘塑二",46.2,51.49,"2028-08-05","stock_margin_upcoming",70,"complete","",true,"2026-08-05"],
+    ["24642","盟立二",116.6,97.1,"2026-09-16","clear",69,"complete","",true,"2026-08-05"],
+    ["64324","今展科四",129.9,88.64,"2026-08-16","clear",65,"complete","",true,"2026-08-05"],
+    ["30882","艾訊二",52.8,78.96,"2026-08-28","stock_margin_active",65,"complete","",true,"2026-08-05"],
+    ["36053","宏致三",104.2,91.02,"2027-08-06","clear",55,"complete","",true,"2026-08-05"],
+    ["61828","合晶八",214.2,81.55,"2027-09-27","cb_disp",42,"complete","",true,"2026-08-05"],
+    ["80426","金山電六",85.2,69.77,"2027-12-16","clear",36,"complete","",true,"2026-08-05"],
+    ["80282","昇陽半導體二",106.1,81.78,"2030-01-22","clear",32,"complete","",true,"2026-08-05"],
+    ["80914","翔名四",83.3,80.87,"2026-08-15","clear",32,"complete","",true,"2026-08-05"],
+    ["64145","樺漢五",78.3,94.18,"2026-08-16","clear",32,"complete","",true,"2026-08-05"],
+    ["15952","川寶二",65.8,88.83,"2027-09-02","clear",4,"complete","2026-07-30",true,"2026-07-28"],
+    ["37075","漢磊五",55.6,70.27,"2028-08-20","clear",4,"complete","2026-07-30",true,"2026-07-29"],
+    ["31311","弘塑一",37.0,64.45,"2028-07-30","stock_margin_upcoming",4,"complete","2026-07-30",true,"2026-07-28"],
+    ["53095","系統電五",39.1,99.82,"2025-08-08","clear",3,"complete","2026-07-31",true,"2026-07-28"],
+    ["30337","威健七",38.8,34.94,"2027-09-11","clear",3,"complete","2026-07-31",true,"2026-07-28"],
+    ["45663","時碩工業三",43.7,95.65,"2026-11-27","clear",4,"complete","2026-07-30",false,""],
+    ["49231","力士一",33.6,48.28,"2028-01-29","clear",1,"complete","2026-08-04",false,""],
+    ["370201","大聯大E1",39.9,90.73,"2029-01-14","clear",0,"complete","2026-08-05",false,""],
+    ["24673","志聖三",111.5,67.64,"2028-01-22","clear",27,"incomplete","2026-06-26",false,""],
+    ["23683","金像電三",110.4,83.48,"2028-11-24","clear",27,"incomplete","2026-06-26",false,""],
+    ["24672","志聖二",108.0,76.21,"2028-01-09","clear",27,"incomplete","2026-06-26",false,""],
+    ["24552","全新二",139.8,55.82,"2029-01-23","clear",22,"incomplete","2026-07-03",false,""],
+    ["33571","臺慶科一",98.9,86.54,"2026-10-31","clear",22,"incomplete","2026-07-03",false,""],
+    ["84221","可寧衛一",85.7,99.64,"2025-11-22","clear",22,"incomplete","2026-07-03",false,""],
+    ["84222","可寧衛二",42.9,96.47,"2028-04-07","clear",22,"incomplete","2026-07-03",false,""],
+    ["61973","佳必琪三",110.0,55.07,"2027-10-15","clear",20,"incomplete","2026-07-07",false,""],
+    ["30371","欣興一",491.6,73.46,"2028-11-03","clear",18,"incomplete","2026-07-09",false,""],
+    ["81551","博智一",142.9,82.51,"2028-01-10","clear",17,"incomplete","2026-07-13",false,""],
+    ["31672","大量二",283.2,62.34,"2028-08-06","clear",14,"incomplete","2026-07-16",false,""],
+    ["49793","華星光三",180.0,45.25,"2026-12-09","clear",13,"incomplete","2026-07-17",false,""],
+    ["49794","華星光四",142.0,45.15,"2026-12-25","clear",13,"incomplete","2026-07-17",false,""],
+    ["80212","尖點二",97.6,61.57,"2029-01-20","clear",12,"incomplete","2026-07-20",false,""],
+    ["15601","中砂一",140.5,80.33,"2027-06-24","clear",11,"incomplete","2026-07-21",false,""],
+    ["61907","萬泰科七",66.8,38.95,"2028-11-06","clear",10,"incomplete","2026-07-22",false,""],
+    ["27551","揚秦一",51.7,63.5,"2028-01-15","clear",10,"incomplete","2026-07-22",false,""],
+    ["62076","雷科六",113.3,77.15,"2027-09-05","clear",8,"incomplete","2026-07-24",false,""],
+    ["62075","雷科五",106.9,85.93,"2027-08-26","clear",8,"incomplete","2026-07-24",false,""],
+    ["65152","穎崴二",95.6,48.01,"2029-02-05","clear",8,"incomplete","2026-07-24",false,""],
+    ["33055","昇貿五",54.9,96.08,"2025-12-25","clear",4,"incomplete","2026-07-30",false,""],
+    ["47223","國精化三",55.2,36.44,"2028-10-01","clear",3,"incomplete","2026-07-31",false,""],
+    ["30165","嘉晶五",46.3,34.64,"2027-07-26","clear",2,"incomplete","2026-08-03",false,""],
+    ["75561","意德士一永",31.5,42.8,"2028-08-12","clear",1,"incomplete","2026-08-04",false,""],
   ];
 
   const outliers = [
-    ["24553","全新三",131.5,27.24,"2029-01-27","clear"],
+    ["24553","全新三",154.4,27.24,"2029-01-27","clear",22,"incomplete","2026-07-03",false,""],
+    ["76101","聯友金屬一創",100.7,0.0,"2028-05-20","clear",13,"incomplete","2026-07-17",false,""],
   ];
 
   const STATE_LABEL = {
@@ -378,6 +407,46 @@
     cb_disp: "CB處置",
     unresolved: "需人工問券商",
   };
+  let streakPayload = { summary: {}, by_code: {} };
+
+  function streakChip(streak, quality, windowActive = false, qualifiedOn = '') {
+    if (windowActive && streak < 30) return `<span class="chip streak-met">曾達30連續日・${qualifiedOn || '行使窗口內'}</span>`;
+    if (quality !== 'complete') return '<span class="chip streak-unknown">資料不完整</span>';
+    if (streak >= 30) return '<span class="chip streak-met">價格條件 30/30・待公告</span>';
+    if (streak > 0) return `<span class="chip streak-building">價格條件 ${streak}/30</span>`;
+    return '<span class="chip streak-zero">目前 0/30</span>';
+  }
+
+  function auditHTML(code) {
+    const record = streakPayload.by_code?.[code];
+    if (!record) return '<p class="audit-note">找不到逐日稽核資料。</p>';
+    const warnings = (record.warnings || []).map(x => `<div>⚠ ${x}</div>`).join('');
+    const rows = (record.history || []).slice().reverse().map(day => `
+      <tr class="${day.passed ? 'pass' : 'fail'}">
+        <td>${day.date}</td>
+        <td class="num">${day.close ?? '—'}</td>
+        <td class="num">${day.conversion_price ?? '—'}</td>
+        <td class="num">${day.threshold_130 ?? '—'}</td>
+        <td>${day.passed ? '達標' : '未達'}</td>
+      </tr>`).join('');
+    return `
+      ${warnings ? `<div class="audit-note">${warnings}</div>` : ''}
+      <div class="table-scroll"><table class="audit-table">
+        <thead><tr><th>日期</th><th>收盤價</th><th>當日轉換價</th><th>130%門檻</th><th>結果</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <p class="audit-note">正股：${record.underlying_code}（${record.market || '市場未知'}）；最近未達標日：${record.last_failed_date || '最近30日內無'}；最近一次完成30連續日：${record.qualified_on || '本次回溯未確認'}。價格條件達標不等於公司已公告強贖。</p>`;
+  }
+
+  function bindAuditDetails() {
+    document.querySelectorAll('details.audit').forEach(detail => {
+      detail.addEventListener('toggle', () => {
+        if (!detail.open || detail.dataset.loaded === '1') return;
+        detail.querySelector('.audit-content').innerHTML = auditHTML(detail.dataset.code);
+        detail.dataset.loaded = '1';
+      });
+    });
+  }
   function stateChip(state) {
     if (!state || state === "clear") return "";
     const label = STATE_LABEL[state] || state;
@@ -406,7 +475,7 @@
 
   function renderCandidates() {
     const el = document.getElementById('candidateRows');
-    el.innerHTML = candidates.map(([code, name, gap, conv, maturity, state]) => {
+    el.innerHTML = candidates.map(([code, name, gap, conv, maturity, state, streak = 0, quality = 'incomplete', lastFailed = '', windowActive = false, qualifiedOn = '']) => {
       const [cls, label] = chipFor(conv);
       return `
         <div class="row">
@@ -414,20 +483,27 @@
             <span class="code num">${code}</span>
             <span class="name">${name}</span>
             <span class="chip ${cls}">${label}</span>
+            ${streakChip(streak, quality, windowActive, qualifiedOn)}
             ${stateChip(state)}
           </div>
           ${gaugeHTML(gap)}
           <span class="maturity">到期/賣回 ${maturity}</span>
+          <details class="audit" data-code="${code}">
+            <summary>查看最近30個營業日明細</summary>
+            <div class="audit-content"><p class="audit-note">載入中…</p></div>
+          </details>
         </div>`;
     }).join('');
+    bindAuditDetails();
   }
 
   function renderTable(id, data) {
     const el = document.getElementById(id);
-    el.innerHTML = data.map(([code, name, gap, conv, maturity, state]) => `
+    el.innerHTML = data.map(([code, name, gap, conv, maturity, state, streak = 0, quality = 'incomplete', lastFailed = '', windowActive = false]) => `
       <tr>
         <td class="num">${code}</td>
         <td>${name}</td>
+        <td class="num">${windowActive && streak < 30 ? '曾達30' : quality === 'complete' ? `${Math.min(streak, 30)}/30` : '資料不全'}</td>
         <td class="num">${gap.toFixed(1)}%</td>
         <td class="num">${conv}%</td>
         <td>${maturity}</td>
@@ -435,9 +511,32 @@
       </tr>`).join('');
   }
 
-  renderCandidates();
-  renderTable('harvestedRows', harvested);
-  renderTable('outlierRows', outliers);
+  async function init() {
+    try {
+      const response = await fetch('data/cb_call_streak.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      streakPayload = await response.json();
+      const summary = streakPayload.summary || {};
+      document.getElementById('totalCount').textContent = summary.total ?? candidates.length + harvested.length + outliers.length;
+      document.getElementById('met30Count').textContent = summary.redemption_window_active ?? summary.met_30 ?? '—';
+      document.getElementById('buildingCount').textContent = summary.streak_20_29 ?? '—';
+      document.getElementById('incompleteCount').textContent = summary.incomplete ?? '—';
+      document.getElementById('streakMeta').textContent = `連續天數截至 ${summary.as_of || '—'}（TWSE/TPEx 官方收盤價）`;
+    } catch (error) {
+      document.getElementById('streakMeta').textContent = '連續天數資料載入失敗';
+      console.error(error);
+    }
+    document.getElementById('candidateCount').textContent = candidates.length;
+    document.getElementById('harvestedCount').textContent = harvested.length;
+    document.getElementById('outlierCount').textContent = outliers.length;
+    document.querySelector('#harvestedBlock summary').firstChild.textContent = `已收割 / 訊號偏晚（${harvested.length} 檔，僅供對照，不建議追）`;
+    document.querySelector('#outlierBlock summary').firstChild.textContent = `極端值 — 離門檻算出來 >100%（${outliers.length} 檔，需自行查證）`;
+    renderCandidates();
+    renderTable('harvestedRows', harvested);
+    renderTable('outlierRows', outliers);
+  }
+
+  init();
 </script>
 </body>
 </html>

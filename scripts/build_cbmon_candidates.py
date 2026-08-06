@@ -1,3 +1,4 @@
+# 來源註記：這是 Codex 弄的。
 # -*- coding: utf-8 -*-
 """用今日manual xq_cb_master.csv(XQ匯出，conv_price可信)重新計算cbmon強贖候選名單。
 
@@ -26,6 +27,7 @@ BASE = Path(__file__).parent.parent
 MASTER_CSV = BASE / "xq_cb_master.csv"
 RESTRICTION_JSON = BASE / "restriction_status.json"
 OUT_JSON = BASE / "cbmon_candidates_new.json"
+STREAK_JSON = BASE / "cb_call_streak.json"
 
 
 def load_restriction_map():
@@ -50,6 +52,13 @@ def main():
         rows = list(csv.DictReader(f))
 
     restriction_map = load_restriction_map()
+    streak_map = {}
+    streak_summary = {}
+    if STREAK_JSON.exists():
+        with open(STREAK_JSON, encoding="utf-8") as f:
+            streak_payload = json.load(f)
+        streak_map = streak_payload.get("by_code", {})
+        streak_summary = streak_payload.get("summary", {})
 
     parsed = []
     skipped_no_price = 0
@@ -63,6 +72,7 @@ def main():
         gap = (stock_price - conv_price) / conv_price * 100
         maturity = r.get("next_put_date") or r.get("maturity_date") or ""
         state = restriction_map.get(r["code"], "clear")
+        streak = streak_map.get(r["code"], {})
         parsed.append({
             "code": r["code"],
             "name": r["name"],
@@ -70,18 +80,29 @@ def main():
             "conv": converted_pct if converted_pct is not None else 0.0,
             "maturity": maturity,
             "state": state,
+            "streak": int(streak.get("current_streak", 0)),
+            "streak_quality": streak.get("data_quality", "incomplete"),
+            "last_failed_date": streak.get("last_failed_date"),
+            "redemption_window_active": bool(streak.get("redemption_window_active", False)),
+            "qualified_on": streak.get("qualified_on"),
         })
 
     candidates = [r for r in parsed if 15 <= r["gap"] <= 100 and r["conv"] < 30]
     harvested = [r for r in parsed if r["gap"] >= 30 and r["conv"] >= 30]
     outliers = [r for r in parsed if r["gap"] > 100 and r["conv"] < 30]
 
-    candidates.sort(key=lambda x: -x["gap"])
-    harvested.sort(key=lambda x: -x["gap"])
-    outliers.sort(key=lambda x: -x["gap"])
+    def rank_key(x):
+        quality_rank = 0 if x["streak_quality"] == "complete" else 1
+        qualified_rank = 0 if x["redemption_window_active"] else 1
+        return (qualified_rank, quality_rank, -x["streak"], -x["gap"], x["conv"])
+
+    candidates.sort(key=rank_key)
+    harvested.sort(key=rank_key)
+    outliers.sort(key=rank_key)
 
     out = {"candidates": candidates, "harvested": harvested, "outliers": outliers,
-           "total": len(rows), "skipped_no_price": skipped_no_price}
+           "total": len(rows), "skipped_no_price": skipped_no_price,
+           "streak_summary": streak_summary}
     with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
 

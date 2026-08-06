@@ -1,3 +1,4 @@
+# 來源註記：這是 Codex 弄的。
 # -*- coding: utf-8 -*-
 """把cbmon_candidates_new.json轉成public/index.html script區塊要貼的JS陣列文字，印出供人工比對後貼回。"""
 import json
@@ -19,7 +20,7 @@ def render(rows):
     lines = []
     for r in rows:
         lines.append(
-            f'    ["{r["code"]}","{r["name"]}",{r["gap"]},{r["conv"]},"{fmt_date(r["maturity"])}","{r["state"]}"],'
+            f'    ["{r["code"]}","{r["name"]}",{r["gap"]},{r["conv"]},"{fmt_date(r["maturity"])}","{r["state"]}",{r.get("streak", 0)},"{r.get("streak_quality", "incomplete")}","{fmt_date(r.get("last_failed_date") or "")}",{str(bool(r.get("redemption_window_active"))).lower()},"{fmt_date(r.get("qualified_on") or "")}"],'
         )
     return "\n".join(lines)
 
@@ -35,7 +36,9 @@ for key in ("candidates", "harvested", "outliers"):
         raise RuntimeError(f"找不到或重複找到 const {key} 區塊")
 
 master_csv = BASE / "xq_cb_master.csv"
-snapshot_date = datetime.fromtimestamp(master_csv.stat().st_mtime).strftime("%Y-%m-%d")
+snapshot_date = data.get("streak_summary", {}).get("as_of") or datetime.fromtimestamp(
+    master_csv.stat().st_mtime
+).strftime("%Y-%m-%d")
 html = re.sub(
     r"可轉債資料 20\d{2}-\d{2}-\d{2}",
     f"可轉債資料 {snapshot_date}",

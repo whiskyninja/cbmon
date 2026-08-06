@@ -6,6 +6,7 @@
 /*.json
 /qa-screenshots/
 .wrangler/
+.cache/
 __pycache__/
 *.pyc
 
@@ -20,3 +21,4 @@ scripts/build_put_yield_page.py
 
 # 覆寫前的自動備份，git本身已提供版本歷史，不需要重複進版控
 /_backups/
+/public/index_*.bak.html
